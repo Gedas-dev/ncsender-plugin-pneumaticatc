@@ -3377,3 +3377,37 @@ describe('sensor checks — retry, then abort only', () => {
     }
   });
 });
+
+describe('custom layout: the keepout box comes from the custom slot coordinates', () => {
+  // Reported setup: Cup rack, custom slot X/Y, Slot 1 X/Y left at 0,0.
+  // The router used to avoid a phantom box at machine 0,0 and sent
+  // TLS -> origin through X-60 (outside travel, ALARM:2).
+  const custom = {
+    orientation: 'Y', direction: 'Negative', slideDirection: 'Negative',
+    keepoutPadding: 60, slideDistance: 40, slots: 2, slotDistance: 60,
+    rackHolding: 'Cup', layoutMode: 'custom', slot1: { x: 0, y: 0, z: -100 },
+    slotCoords: [{ n: 1, x: 189.733, y: 135.949 }, { n: 2, x: 164.89, y: 60.879 }],
+  };
+
+  test('computeKeepoutZone wraps the custom slots, not Slot 1', () => {
+    const z = computeKeepoutZone(custom);
+    assert.deepEqual(
+      [z.minX, z.maxX, z.minY, z.maxY].map((v) => +v.toFixed(3)),
+      [104.89, 249.733, 0.879, 195.949],
+    );
+  });
+
+  test('TLS -> front-left origin never goes to negative X', () => {
+    const out = tlsExit(176.47, 29.935, { x: 0, y: 75 }, custom);
+    assert.ok(!/X-/.test(out), out);
+  });
+
+  test('every waypoint stays out of the custom box', () => {
+    const z = computeKeepoutZone(custom);
+    const pts = routePoint({ x: 0, y: 75 }, { x: 300, y: 100 }, custom);
+    for (const p of pts.slice(0, -1)) {
+      const inside = p.x > z.minX && p.x < z.maxX && p.y > z.minY && p.y < z.maxY;
+      assert.ok(!inside, JSON.stringify(p));
+    }
+  });
+});

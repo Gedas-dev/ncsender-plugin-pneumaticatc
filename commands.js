@@ -737,15 +737,10 @@ function createToolLengthSetRoutine(settings, toolOffsets = { x: 0, y: 0, z: 0 }
 // sits inside the padded perp band; single direct move if outside.
 function approachWithoutOrigin(tlsTarget, settings) {
   const orientationY = settings.orientation === 'Y';
-  const pad = settings.keepoutPadding ?? settings.slideDistance ?? 0;
-  const slot1Perp = orientationY ? settings.slot1.x : settings.slot1.y;
-  const slot1Par  = orientationY ? settings.slot1.y : settings.slot1.x;
-  const slotNPar  = slotParFor(settings.slots, settings);
-  const parMin = Math.min(slot1Par, slotNPar) - pad;
-  const parMax = Math.max(slot1Par, slotNPar) + pad;
+  const { perpMin, perpMax, parMin, parMax } = rackBox(settings);
   const tlsPerp = orientationY ? tlsTarget.x : tlsTarget.y;
   const tlsPar  = orientationY ? tlsTarget.y : tlsTarget.x;
-  const tlsInsidePerpRange = tlsPerp > slot1Perp - pad && tlsPerp < slot1Perp + pad;
+  const tlsInsidePerpRange = tlsPerp > perpMin && tlsPerp < perpMax;
   if (!tlsInsidePerpRange) return [tlsTarget];
   const entryPerp = pickEntryEdge(settings, undefined);
   const clampedPar = Math.max(parMin, Math.min(parMax, tlsPar));
@@ -936,6 +931,39 @@ function calculateSlotPosition(settings, slotNum) {
 // edge of the outer keepout rectangle before descending into the box
 // to the slot approach point.
 
+// The rack's padded keepout box in perp/par terms — the one box every
+// route avoids. Linear: around the slot1..slotN line. Custom: around all
+// the custom slot coordinates (Slot 1 X/Y and Slot Distance are hidden
+// and left at their defaults in that mode, so using them put a phantom
+// box at machine 0,0 and sent detours outside travel, ALARM:2). Matches
+// computeKeepoutFromSettings in config.html.
+function rackBox(settings) {
+  const orientationY = settings.orientation === 'Y';
+  const pad = settings.keepoutPadding ?? settings.slideDistance ?? 0;
+  let perpLo, perpHi, parLo, parHi;
+  const custom = settings.layoutMode === 'custom'
+    ? [...sanitizeSlotCoords(settings.slotCoords, settings.slots).values()]
+    : [];
+  if (custom.length > 0) {
+    const perps = custom.map((c) => (orientationY ? c.x : c.y));
+    const pars  = custom.map((c) => (orientationY ? c.y : c.x));
+    perpLo = Math.min(...perps); perpHi = Math.max(...perps);
+    parLo  = Math.min(...pars);  parHi  = Math.max(...pars);
+  } else {
+    const slot1Perp = orientationY ? settings.slot1.x : settings.slot1.y;
+    const slot1Par  = orientationY ? settings.slot1.y : settings.slot1.x;
+    const slotNPar  = slotParFor(settings.slots, settings);
+    perpLo = perpHi = slot1Perp;
+    parLo = Math.min(slot1Par, slotNPar); parHi = Math.max(slot1Par, slotNPar);
+  }
+  const r3 = (v) => Math.round(v * 1000) / 1000;
+  return {
+    perpMin: r3(perpLo - pad), perpMax: r3(perpHi + pad),
+    parMin:  r3(parLo - pad),  parMax:  r3(parHi + pad),
+    perpCenter: r3((perpLo + perpHi) / 2),
+  };
+}
+
 // Slot par coord for slot N (1-indexed). Par is the axis slots stack
 // along (Y for orientation='Y', X for orientation='X').
 function slotParFor(slotNumber, settings) {
@@ -957,15 +985,8 @@ function slotEngagedXY(slotNumber, settings) {
 // on all four sides around the slot1..slotN axis, matching the rectangle
 // the visualizer draws.
 function computeKeepoutZone(settings) {
-  const pad = settings.keepoutPadding ?? settings.slideDistance ?? 0;
   const orientationY = settings.orientation === 'Y';
-  const slot1Perp = orientationY ? settings.slot1.x : settings.slot1.y;
-  const slot1Par  = orientationY ? settings.slot1.y : settings.slot1.x;
-  const slotNPar  = slotParFor(settings.slots, settings);
-  const parMin = Math.min(slot1Par, slotNPar) - pad;
-  const parMax = Math.max(slot1Par, slotNPar) + pad;
-  const perpMin = slot1Perp - pad;
-  const perpMax = slot1Perp + pad;
+  const { perpMin, perpMax, parMin, parMax } = rackBox(settings);
   return {
     minX: orientationY ? perpMin : parMin,
     maxX: orientationY ? perpMax : parMax,
@@ -1010,12 +1031,8 @@ function segmentIntersectsRect(ax, ay, bx, by, minX, maxX, minY, maxY) {
 // keepout zone, on the side the tool approaches from. `slotEntryPoint`
 // sits on this line; every rack entry / exit lands here first.
 function slidingSidePerp(settings) {
-  const pad = settings.keepoutPadding ?? settings.slideDistance ?? 0;
-  const slideSign = settings.slideDirection === 'Positive' ? 1 : -1;
-  const approachSign = -slideSign;
-  const orientationY = settings.orientation === 'Y';
-  const slot1Perp = orientationY ? settings.slot1.x : settings.slot1.y;
-  return slot1Perp + approachSign * pad;
+  const { perpMin, perpMax } = rackBox(settings);
+  return settings.slideDirection === 'Positive' ? perpMin : perpMax;
 }
 
 // Slot approach perp — inside the keepout box, `slideDistance` from the
@@ -1081,10 +1098,7 @@ function slotApproachPoint(slotNumber, settings) {
 // edge (reported on a 12-slot Sienci rack: ~240 mm of pointless travel).
 function pickEntryEdge(settings, edgeAnchor, freeEdge = false) {
   const orientationY = settings.orientation === 'Y';
-  const pad = settings.keepoutPadding ?? settings.slideDistance ?? 0;
-  const slot1Perp = orientationY ? settings.slot1.x : settings.slot1.y;
-  const perpMin = slot1Perp - pad;
-  const perpMax = slot1Perp + pad;
+  const { perpMin, perpMax } = rackBox(settings);
 
   if (freeEdge || settings.rackHolding === 'Cup') {
     if (edgeAnchor) {
@@ -1092,8 +1106,7 @@ function pickEntryEdge(settings, edgeAnchor, freeEdge = false) {
       if (anchorPerp >= perpMax) return perpMax;
       if (anchorPerp <= perpMin) return perpMin;
     }
-    const slideSign = settings.slideDirection === 'Positive' ? 1 : -1;
-    return slot1Perp + slideSign * pad;
+    return settings.slideDirection === 'Positive' ? perpMax : perpMin;
   }
 
   return slidingSidePerp(settings);
@@ -1134,14 +1147,7 @@ function pickEntryEdge(settings, edgeAnchor, freeEdge = false) {
 // this configuration. Add machineTravel-aware handling when needed.
 function routePoint(from, to, settings, options = {}) {
   const orientationY = settings.orientation === 'Y';
-  const pad = settings.keepoutPadding ?? settings.slideDistance ?? 0;
-  const slot1Perp = orientationY ? settings.slot1.x : settings.slot1.y;
-  const slot1Par  = orientationY ? settings.slot1.y : settings.slot1.x;
-  const slotNPar  = slotParFor(settings.slots, settings);
-  const parMin = Math.min(slot1Par, slotNPar) - pad;
-  const parMax = Math.max(slot1Par, slotNPar) + pad;
-  const perpMin = slot1Perp - pad;
-  const perpMax = slot1Perp + pad;
+  const { perpMin, perpMax, parMin, parMax, perpCenter } = rackBox(settings);
   const zone = {
     minX: orientationY ? perpMin : parMin,
     maxX: orientationY ? perpMax : parMax,
@@ -1161,10 +1167,10 @@ function routePoint(from, to, settings, options = {}) {
   // oppositePerp = the OTHER edge of the padded perp band.
   const oppositePerp = entryPerp === perpMax ? perpMin
                      : entryPerp === perpMin ? perpMax
-                     : (2 * slot1Perp - entryPerp);
+                     : (perpMin + perpMax - entryPerp);
   // entryDir: which way "past the entry edge" points. +1 if entryPerp
   // is the +side edge, -1 if -side. Boundary check uses strict inequality.
-  const entryDir = Math.sign(entryPerp - slot1Perp) || 1;
+  const entryDir = Math.sign(entryPerp - perpCenter) || 1;
 
   const getPerp = (p) => orientationY ? p.x : p.y;
   const getPar  = (p) => orientationY ? p.y : p.x;
@@ -1235,7 +1241,9 @@ function rackEntrance(targetSlotXY, origin, settings) {
   const parAxis  = orientationY ? 'Y' : 'X';
   const targetPar = parAxis === 'X' ? targetSlotXY.x : targetSlotXY.y;
   const entryPerp = slidingSidePerp(settings);
-  const approachPerp = slotApproachPerp(settings);
+  const slideSign = settings.slideDirection === 'Positive' ? 1 : -1;
+  const targetPerp = perpAxis === 'X' ? targetSlotXY.x : targetSlotXY.y;
+  const approachPerp = targetPerp - slideSign * (settings.slideDistance || 0);
   const entry = perpAxis === 'X'
     ? { x: entryPerp, y: targetPar }
     : { x: targetPar, y: entryPerp };
