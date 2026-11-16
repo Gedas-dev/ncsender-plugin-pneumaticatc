@@ -1026,8 +1026,10 @@ describe('buildUnloadTool — Cup routes around keepout (regression)', () => {
     // the unclamp aux fires, a G1 back-off retracts to slot.z + offset
     // at drawbarFeedrate — this overlaps with the pneumatic push so the
     // tool holder stays on the cup lip while the drawbar releases.
-    assert.ok(lines.some(l => l === 'G53 G0 Z-100'),
-      'unload initial descent should be to slot.z (with clamped tool still in cup position)');
+    assert.ok(lines.some(l => l === 'G53 G0 Z-95'),
+      'unload rapids only to slot.z + 5 (cup slow zone)');
+    assert.ok(lines.some(l => l === 'G53 G1 Z-100 F500'),
+      'unload feeds the last 5 mm to slot.z at the cup approach speed');
     assert.ok(lines.some(l => l === 'G53 G1 Z-99 F300'),
       'unload should G1 back off to slot.z + drawbarOffset at drawbarFeedrate after unclamp aux');
     assert.ok(lines.some(l => l === `G53 G0 Z${CUP_RACK.zSafe || 0}`),
@@ -1218,12 +1220,14 @@ describe('buildLoadTool — drawbar offset compensation (regression)', () => {
       CUP_RACK, 1, slotPos, '', false, { x: 60, y: 120 }, false
     );
     const lines = motionLines(gcode);
-    assert.ok(lines.some(l => l === 'G53 G0 Z-99'),
-      'first Z descent should be G0 rapid to slot.z + drawbarOffset (approach at drawbar-open height)');
+    assert.ok(lines.some(l => l === 'G53 G0 Z-95'),
+      'first Z descent should be G0 rapid to slot.z + 5 (cup slow zone)');
+    assert.ok(lines.some(l => l === 'G53 G1 Z-99 F500'),
+      'then feed to slot.z + drawbarOffset at the cup approach speed');
     assert.ok(lines.some(l => l === 'G53 G1 Z-100 F300'),
       'seat should be G1 (feedrate move) to slot.z at drawbarFeedrate — overlaps with pneumatic clamp actuation');
     // Clamp aux (M65 P2) must fire BETWEEN the G0 approach and the G1 seat.
-    const approachIdx = lines.indexOf('G53 G0 Z-99');
+    const approachIdx = lines.indexOf('G53 G1 Z-99 F500');
     const seatIdx     = lines.indexOf('G53 G1 Z-100 F300');
     const clampIdx    = lines.findIndex(l => l === 'M65 P2');
     assert.ok(clampIdx > approachIdx && clampIdx < seatIdx,
@@ -1234,12 +1238,14 @@ describe('buildLoadTool — drawbar offset compensation (regression)', () => {
     const slotPos = calculateSlotPosition(CUP_RACK, 1);
     const gcode = buildUnloadTool(CUP_RACK, 1, slotPos, { x: 60, y: 120 });
     const lines = motionLines(gcode);
-    assert.ok(lines.some(l => l === 'G53 G0 Z-100'),
-      'first Z descent should be G0 rapid to slot.z (with clamped tool)');
+    assert.ok(lines.some(l => l === 'G53 G0 Z-95'),
+      'first Z descent should be G0 rapid to slot.z + 5 (cup slow zone)');
+    assert.ok(lines.some(l => l === 'G53 G1 Z-100 F500'),
+      'then feed to slot.z at the cup approach speed');
     assert.ok(lines.some(l => l === 'G53 G1 Z-99 F300'),
       'back-off should be G1 to slot.z + drawbarOffset at drawbarFeedrate — overlaps with pneumatic unclamp actuation');
     // Unclamp aux (M64 P2) must fire BETWEEN the descent and the back-off.
-    const descentIdx = lines.indexOf('G53 G0 Z-100');
+    const descentIdx = lines.indexOf('G53 G1 Z-100 F500');
     const backoffIdx = lines.indexOf('G53 G1 Z-99 F300');
     const unclampIdx = lines.findIndex(l => l === 'M64 P2');
     assert.ok(unclampIdx > descentIdx && unclampIdx < backoffIdx,
@@ -3409,5 +3415,24 @@ describe('custom layout: the keepout box comes from the custom slot coordinates'
       const inside = p.x > z.minX && p.x < z.maxX && p.y > z.minY && p.y < z.maxY;
       assert.ok(!inside, JSON.stringify(p));
     }
+  });
+});
+
+describe('cup approach speed: rapid to 5 mm above the slot, then feed', () => {
+  test('uses the configured speed on unload and load', () => {
+    const rack = { ...CUP_RACK, cupApproachSpeed: 250 };
+    const slotPos = calculateSlotPosition(rack, 1);
+    const unload = motionLines(buildUnloadTool(rack, 1, slotPos, { x: 60, y: 120 }));
+    const load = motionLines(buildLoadTool(rack, 1, slotPos, '', false, { x: 60, y: 120 }, false));
+    assert.ok(unload.includes('G53 G1 Z-100 F250'), unload.join('\n'));
+    assert.ok(load.includes('G53 G1 Z-99 F250'), load.join('\n'));
+    assert.ok(!unload.includes('G53 G0 Z-100') && !load.includes('G53 G0 Z-99'), 'no rapid into the cup');
+  });
+
+  test('fork racks are unchanged', () => {
+    const fork = { ...CUP_RACK, rackHolding: 'Fork', cupApproachSpeed: 250 };
+    const slotPos = calculateSlotPosition(fork, 1);
+    const unload = motionLines(buildUnloadTool(fork, 1, slotPos, { x: 60, y: 120 }));
+    assert.ok(!unload.some((l) => / F250$/.test(l)), unload.join('\n'));
   });
 });

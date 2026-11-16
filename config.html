@@ -1295,6 +1295,14 @@
               <input class="pa-input" type="number" id="pa-keepout-padding" value="60" min="0" step="0.1">
             </div>
           </div>
+
+          <!-- Cup-only: rapid to 5 mm above the slot, then feed the rest at this speed. -->
+          <div id="pa-cup-settings" style="display:none">
+            <div class="pa-field-inline">
+              <label id="pa-label-cup-approach-speed">Approach Speed (mm/min)</label>
+              <input class="pa-input" type="number" id="pa-cup-approach-speed" value="500" min="1" step="1">
+            </div>
+          </div>
         </div>
 
         <!-- Layout — the pattern the slots follow across the rack. -->
@@ -2035,7 +2043,7 @@
   // displays as. Rescale the bounds and drop to step="any" once we know the
   // preference. Metric is left exactly as authored.
   var UNIT_INPUT_IDS = [
-    'pa-slide-distance', 'pa-slide-speed', 'pa-keepout-padding', 'pa-slot-distance',
+    'pa-slide-distance', 'pa-slide-speed', 'pa-cup-approach-speed', 'pa-keepout-padding', 'pa-slot-distance',
     'pa-seek-start-z', 'pa-seek-distance', 'pa-seek-feedrate',
     'pa-slot1-x', 'pa-slot1-y', 'pa-slot1-z', 'pa-slot1-z-custom',
     'pa-toolsetter-x', 'pa-toolsetter-y', 'pa-manualtool-x', 'pa-manualtool-y',
@@ -2689,6 +2697,8 @@
     var holding = $('pa-rack-holding');
     if (!forkBlock || !holding) return;
     forkBlock.style.display = holding.value === 'Cup' ? 'none' : '';
+    var cupBlock = $('pa-cup-settings');
+    if (cupBlock) cupBlock.style.display = holding.value === 'Cup' ? '' : 'none';
   }
   var rackHoldingSelect = $('pa-rack-holding');
   if (rackHoldingSelect) rackHoldingSelect.addEventListener('change', updateRackHoldingVisibility);
@@ -3131,6 +3141,7 @@
     $('pa-slide-distance').value = fmtCoord(initialConfig.slideDistance ?? 40);
     $('pa-keepout-padding').value = fmtCoord(initialConfig.keepoutPadding ?? 60);
     $('pa-slide-speed').value    = fmtCoord(initialConfig.slideSpeed ?? 500);
+    $('pa-cup-approach-speed').value = fmtCoord(initialConfig.cupApproachSpeed ?? 500);
     $('pa-slot-distance').value  = fmtCoord(initialConfig.slotDistance ?? initialConfig.pocketDistance ?? 60);
     $('pa-seek-start-z').value   = fmtCoord(initialConfig.tlsSeekStartZ ?? initialConfig.zSafe ?? -5);
     $('pa-seek-distance').value  = fmtCoord(initialConfig.seekDistance ?? 50);
@@ -3255,6 +3266,7 @@
     $('pa-label-slot-distance').textContent = 'Slot Distance (' + u + ')';
     $('pa-label-slide-distance').textContent = 'Slide Distance (' + u + ')';
     $('pa-label-slide-speed').textContent = 'Slide Speed (' + f + ')';
+    $('pa-label-cup-approach-speed').textContent = 'Approach Speed (' + f + ')';
     $('pa-label-keepout-padding').textContent = 'Safety Margin (' + u + ')';
     $('pa-label-probe-slide-distance').textContent = 'Slide Distance (' + u + ')';
     $('pa-label-probe-slide-speed').textContent = 'Slide Speed (' + f + ')';
@@ -3387,6 +3399,7 @@
       slideDirection: segSlideDir ? segSlideDir.get() : 'Negative',
       slideDistance: toMetric(parseFloatOr($('pa-slide-distance').value, 40)),
       slideSpeed: toMetric(parseFloatOr($('pa-slide-speed').value, 500)),
+      cupApproachSpeed: toMetric(parseFloatOr($('pa-cup-approach-speed').value, 500)),
       keepoutPadding: toMetric(parseFloatOr($('pa-keepout-padding').value, 60)),
 
       tlsMode: tlsMode,

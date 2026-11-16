@@ -37,6 +37,13 @@ const MAX_TOOL_NUMBER = 99;
 const DRAWBAR_OFFSET_MM = 1;
 const DRAWBAR_FEEDRATE_MMPM = 300;
 
+// Cup rack: rapid down to this height above the slot, then feed the rest
+// at the Cup Approach Speed setting, so the holder isn't slammed into the
+// cup at rapid. Fixed for now.
+const CUP_SLOW_ZONE_MM = 5;
+const cupSlowZ = (z) => Math.round((z + CUP_SLOW_ZONE_MM) * 1000) / 1000;
+const cupFeed = (settings) => (settings.cupApproachSpeed > 0 ? settings.cupApproachSpeed : 500);
+
 // How far above the holder a pickup clamps before feeding down onto it.
 // The Sienci spindle clamps at Load Z, the way its own TC.macro does: 1 mm
 // higher the collet misses the pull stud, the tool sensor reads empty, and
@@ -258,6 +265,8 @@ const buildInitialConfig = (raw = {}) => {
     // safety margin around the rack than the routing itself needs.
     keepoutPadding: toFiniteNumber(raw.keepoutPadding, 60),
     rackHolding: raw.rackHolding === 'Cup' ? 'Cup' : 'Fork',
+    // Cup only: feed for the last CUP_SLOW_ZONE_MM down to the slot.
+    cupApproachSpeed: toFiniteNumber(raw.cupApproachSpeed, 500),
 
     showMacroCommand: raw.showMacroCommand ?? false,
     tlsMode: sanitizeTlsMode(raw.tlsMode, raw.performTlsOnToolChange),
@@ -1662,7 +1671,8 @@ function buildUnloadTool(settings, currentTool, slotPos, origin = { x: 0, y: 0 }
   if (settings.rackHolding === 'Cup') {
     return `
       ${cupEntrance(slotPos.engaged, origin, settings)}
-      G53 G0 Z${settings.slot1.z}
+      G53 G0 Z${cupSlowZ(settings.slot1.z)}
+      G53 G1 Z${settings.slot1.z} F${cupFeed(settings)}
       G4 P0.5
       ${auxLineFor(settings, 'unclamp')}${drawbarBackoff}
       G4 P0.5
@@ -1802,8 +1812,13 @@ function buildLoadTool(settings, toolNumber, slotPos, tlsRoutine, drawbarAlready
   const clampSettle = settings.taperBlow ? DEDUST_CLAMP_SETTLE_SEC : 0.5;
 
   if (settings.rackHolding === 'Cup') {
+    // Rapid to the slow zone, then feed to the approach height. The taper
+    // blow path already feeds the last DEDUST_LIFT_MM.
+    const cupDescend = settings.taperBlow ? descend : `${releaseFirst}
+      G53 G0 Z${cupSlowZ(settings.slot1.z)}
+      G53 G1 Z${approachZ} F${cupFeed(settings)}`;
     return `
-      ${approachToEngaged}${descend}
+      ${approachToEngaged}${cupDescend}
       G4 P0.5
       ${auxLineFor(settings, 'clamp')}${drawbarSeat}
       G4 P${clampSettle}
