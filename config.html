@@ -1717,7 +1717,7 @@
 
       <div class="pa-panel pa-panel-events">
         <div class="pa-card pa-events-card">
-          <h3 class="pa-card-title">Rack Only</h3>
+          <h3 class="pa-card-title">Rack and Manual Only</h3>
           <p class="pa-card-help">Runs the Pre and Post Tool Change events only around the rack part of a change, so a rack they open is closed whenever the probe or a manual tool is picked up or put down. Probe or manual tool with an empty spindle, or one swapped for the other: neither event runs. Rack tool to probe or manual tool: Pre runs at the start, Post runs as soon as the spindle has left the rack, before the probe pickup or the manual dialog. Probe or manual tool to rack tool: Pre runs only after the probe is back in its holder or the manual tool is out, Post at the end as usual. Changes between rack tools are not affected.</p>
           <div class="pa-field-inline">
             <label for="pa-events-rack-only">Keep the rack closed for the probe and manual tools</label>
