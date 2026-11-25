@@ -93,11 +93,15 @@
     },
     "MANUAL_UNLOAD_TOOL": {
       "title": "Manual Unload",
+      "heading": "Remove this tool from the spindle",
       "message": "Click <em>Release</em> to open the drawbar. Remove tool {toolNumber}, then click <em>Continue</em>. Or click <em>Abort</em> to cancel.",
       "continueLabel": "Continue",
+      "continueTask": "Remove {toolNumber}, then continue",
       "buttons": [
         {
           "label": "Release",
+          "task": "Hold the tool, then open the drawbar",
+          "done": "Drawbar open",
           "gcode": [
             "~"
           ]
@@ -106,17 +110,23 @@
     },
     "MANUAL_LOAD_TOOL": {
       "title": "Manual Load",
+      "heading": "Load this tool into the spindle",
       "message": "Click <em>Release</em> to open the drawbar. Insert tool {toolNumber}, click <em>Clamp</em> to close it, then click <em>Continue</em>.",
       "continueLabel": "Continue",
+      "continueNote": "Check that the tool is seated before you continue.",
       "buttons": [
         {
           "label": "Release",
+          "task": "Open the drawbar",
+          "done": "Drawbar open",
           "gcode": [
             "~"
           ]
         },
         {
           "label": "Clamp",
+          "task": "Insert the tool, then close the drawbar",
+          "done": "Drawbar closed",
           "gcode": [
             "~"
           ]
@@ -125,11 +135,15 @@
     },
     "MANUAL_CLAMP_TOOL": {
       "title": "Manual Load",
+      "heading": "Load this tool into the spindle",
       "message": "Insert tool {toolNumber}, click <em>Clamp</em> to close the drawbar, then click <em>Continue</em>.",
       "continueLabel": "Continue",
+      "continueNote": "Check that the tool is seated before you continue.",
       "buttons": [
         {
           "label": "Clamp",
+          "task": "Insert the tool, then close the drawbar",
+          "done": "Drawbar closed",
           "gcode": [
             "~"
           ]
@@ -138,17 +152,23 @@
     },
     "MANUAL_SWAP_TOOL": {
       "title": "Manual Swap",
+      "heading": "Swap to this tool",
       "message": "Click <em>Release</em> to open the drawbar. Remove the current tool, insert tool {toolNumber}, click <em>Clamp</em> to close the drawbar, then click <em>Continue</em>.",
       "continueLabel": "Continue",
+      "continueNote": "Check that the tool is seated before you continue.",
       "buttons": [
         {
           "label": "Release",
+          "task": "Hold the current tool, then open the drawbar",
+          "done": "Drawbar open",
           "gcode": [
             "~"
           ]
         },
         {
           "label": "Clamp",
+          "task": "Remove the current tool, insert {toolNumber}, then close the drawbar",
+          "done": "Drawbar closed",
           "gcode": [
             "~"
           ]
@@ -157,11 +177,14 @@
     },
     "MANUAL_QUICK_UNLOAD_TOOL": {
       "title": "Manual Unload",
+      "heading": "Remove this tool from the spindle",
       "message": "Hold tool {toolNumber}, then click <em>Release &amp; Clamp</em>: the drawbar opens for a moment and closes again, so the tool drops into your hand. Then click <em>Continue</em>.",
       "continueLabel": "Continue",
       "buttons": [
         {
           "label": "Release & Clamp",
+          "task": "Hold the tool, then pulse the drawbar: it opens for a moment and closes again",
+          "done": "Tool released",
           "gcode": [
             "~"
           ]
@@ -170,11 +193,15 @@
     },
     "MANUAL_QUICK_LOAD_TOOL": {
       "title": "Manual Load",
+      "heading": "Load this tool into the spindle",
       "message": "Hold tool {toolNumber} up in the spindle, then click <em>Release &amp; Clamp</em>: the drawbar opens for a moment and closes on it. Then click <em>Continue</em>.",
       "continueLabel": "Continue",
+      "continueNote": "Check that the tool is seated before you continue.",
       "buttons": [
         {
           "label": "Release & Clamp",
+          "task": "Hold the tool up in the spindle, then pulse the drawbar: it opens for a moment and closes on the tool",
+          "done": "Tool clamped",
           "gcode": [
             "~"
           ]
@@ -183,17 +210,23 @@
     },
     "MANUAL_QUICK_SWAP_TOOL": {
       "title": "Manual Swap",
+      "heading": "Swap to this tool",
       "message": "Hold the current tool and click <em>Release &amp; Clamp: Old Tool</em>: the drawbar opens for a moment so it drops into your hand. Then hold tool {toolNumber} up in the spindle and click <em>Release &amp; Clamp: New Tool</em>. Then click <em>Continue</em>.",
       "continueLabel": "Continue",
+      "continueNote": "Check that the tool is seated before you continue.",
       "buttons": [
         {
           "label": "Release & Clamp: Old Tool",
+          "task": "Hold the current tool, then pulse the drawbar: it drops into your hand",
+          "done": "Old tool released",
           "gcode": [
             "~"
           ]
         },
         {
           "label": "Release & Clamp: New Tool",
+          "task": "Hold {toolNumber} up in the spindle, then pulse the drawbar: it closes on the tool",
+          "done": "New tool clamped",
           "gcode": [
             "~"
           ]
